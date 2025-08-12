@@ -372,23 +372,43 @@ TABLE_FOOTER;
             return null;
         }
         $authorizations = explode(",", $openid_data['authorizations']);
-
-        if ($this->_find_rights("WordPress.Admin:$owner_unit_id", $authorizations)) {
-            $this->debug("Access level from accred is administrator");
-            return "editor";
+        $authorizations = array_filter($authorizations, function ($auth) { 
+            return str_contains($auth, "WordPress.Editor:");
+        });
+        if (empty($authorizations)) {
+            return null;
         }
-        if ($this->_find_rights("WordPress.Editor:$owner_unit_id", $authorizations)) {
+
+        if ($this->_find_right($owner_unit_id, $authorizations)) {
             $this->debug("Access level from accred is editor");
             return "editor";
         }
         return null;
     }
 
-    function _find_rights($wordpress_right, $authorizations)
+    function _find_right($owner_unit_id, $authorizations)
     {
-        $right_found = in_array($wordpress_right, $authorizations, true);
-        if ($right_found) {
-            return true;
+        // Check direct authorization
+        foreach ($authorizations as $auth) {
+            if ($auth == "WordPress.Editor:" . $owner_unit_id) {
+                return true;
+            }
+        }
+
+        // Check if owner_unit_id lies is a parent unit
+        foreach ($authorizations as $auth) {
+            $auth_unit_id = str_replace("WordPress.Editor:", "", $auth);
+            $auth_unit_label = $this->get_ldap_unit_label($auth_unit_id);
+            $parents_unit_label = $this->get_ldap_parents_unit_label($auth_unit_label);
+            if ($parents_unit_label == null) {
+                return null;
+            }
+            foreach ($parents_unit_label as $parent_unit_label) {
+                $parent_unit_id = $this->get_ldap_unit_id($parent_unit_label);
+                if ($auth == "WordPress.Editor:" . $parent_unit_id) {
+                    return true;
+                }
+            }
         }
         return false;
     }
@@ -420,6 +440,38 @@ TABLE_FOOTER;
     }
 
     /**
+     * Returns the LDAP unit label from it's id.
+     */
+    function get_ldap_unit_label($unit_id)
+    {
+        $dn = self::LDAP_BASE_DN;
+
+        $ds = ldap_connect(self::LDAP_HOST) or die ("Error connecting to LDAP");
+
+        if ($ds === false) {
+          error_log("Cannot connect to LDAP");
+          return false;
+        }
+
+        ldap_set_option($ds, LDAP_OPT_PROTOCOL_VERSION, 3);
+
+        $result = ldap_search($ds, $dn, "(&(uniqueidentifier=". $unit_id .")(objectclass=EPFLorganizationalUnit))");
+
+        if ($result === false) {
+          error_log(ldap_error($ds));
+          return false;
+        }
+
+        $infos = ldap_get_entries($ds, $result);
+
+        $unit_label = ($infos['count'] > 0) ? $infos[0]['cn'][0]:null;
+
+        ldap_close($ds);
+
+        return strtoupper($unit_label);
+    }
+
+    /**
      * Returns the LDAP unit id from it's label.
      */
     function get_ldap_unit_id($unit_label)
@@ -438,7 +490,6 @@ TABLE_FOOTER;
         $result = ldap_search($ds, $dn, "(&(cn=". $unit_label .")(objectclass=EPFLorganizationalUnit))");
 
         if ($result === false) {
-
           error_log(ldap_error($ds));
           return false;
         }
@@ -450,6 +501,43 @@ TABLE_FOOTER;
         ldap_close($ds);
 
         return $unit_id;
+    }
+
+    /**
+     * Returns the parent LDAP unit label from an unit label.
+     */
+    function get_ldap_parents_unit_label($unit_label)
+    {
+        $dn = self::LDAP_BASE_DN;
+
+        $ds = ldap_connect(self::LDAP_HOST) or die ("Error connecting to LDAP");
+
+        if ($ds === false) {
+          error_log("Cannot connect to LDAP");
+          return false;
+        }
+
+        ldap_set_option($ds, LDAP_OPT_PROTOCOL_VERSION, 3);
+
+        $result = ldap_search($ds, $dn, "(&(ou=$unit_label)(objectClass=organizationalUnit))");
+
+        if ($result === false) {
+          error_log(ldap_error($ds));
+          return false;
+        }
+
+        $infos = ldap_get_entries($ds, $result);
+        $dn = explode(",", $infos[0]['dn']);
+        $ou = array_filter($dn, function ($val) { 
+            return str_contains($val, "ou=");
+        });
+        $parents_unit_label = array_map(function($val) {
+            return strtoupper(str_replace("ou=", "", $val));
+        }, $ou);
+
+        ldap_close($ds);
+
+        return $parents_unit_label;
     }
 }
 
