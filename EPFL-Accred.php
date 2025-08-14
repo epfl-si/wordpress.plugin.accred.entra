@@ -165,6 +165,8 @@ class Settings extends \EPFL\SettingsBase
     /* We don't look in o=epfl,c=ch because some units can be for example in c=ch*/
     const LDAP_BASE_DN = "c=ch";
     const LDAP_HOST = "ldap.epfl.ch";
+    const UNITS_CACHE_KEY = 'accred_units';
+    
     var $vpsi_lockdown = false;
     var $is_debug_enabled = false;
 
@@ -187,11 +189,11 @@ class Settings extends \EPFL\SettingsBase
         if(empty($unit_label))
         {
             add_settings_error(
-			    'unit',
-			    'empty',
-			    ___('Ne peut pas être vide'),
-			    'error'
-		    );
+                            'unit',
+                            'empty',
+                            ___('Ne peut pas être vide'),
+                            'error'
+                    );
         }
         else
         {
@@ -372,7 +374,7 @@ TABLE_FOOTER;
             return null;
         }
         $authorizations = explode(",", $openid_data['authorizations']);
-        $authorizations = array_filter($authorizations, function ($auth) { 
+        $authorizations = array_filter($authorizations, function ($auth) {
             return str_contains($auth, "WordPress.Editor:");
         });
         if (empty($authorizations)) {
@@ -395,6 +397,19 @@ TABLE_FOOTER;
             }
         }
 
+        // Check cached authorization
+        $accred_units_cache = get_transient(self::UNITS_CACHE_KEY);
+        if (! $accred_units_cache) {
+            $accred_units_cache = array();
+        }
+        foreach ($accred_units_cache as $cache_unit) {
+            foreach ($authorizations as $auth) {
+                if ($auth == "WordPress.Editor:" . $cache_unit) {
+                    return true;
+                }
+            }
+        }
+
         // Check if owner_unit_id lies is a parent unit
         foreach ($authorizations as $auth) {
             $auth_unit_id = str_replace("WordPress.Editor:", "", $auth);
@@ -406,6 +421,8 @@ TABLE_FOOTER;
             foreach ($parents_unit_label as $parent_unit_label) {
                 $parent_unit_id = $this->get_ldap_unit_id($parent_unit_label);
                 if ($auth == "WordPress.Editor:" . $parent_unit_id) {
+                    array_push($accred_units_cache, $parent_unit_id);
+                    set_transient(self::UNITS_CACHE_KEY, $accred_units_cache, DAY_IN_SECONDS);
                     return true;
                 }
             }
@@ -528,7 +545,7 @@ TABLE_FOOTER;
 
         $infos = ldap_get_entries($ds, $result);
         $dn = explode(",", $infos[0]['dn']);
-        $ou = array_filter($dn, function ($val) { 
+        $ou = array_filter($dn, function ($val) {
             return str_contains($val, "ou=");
         });
         $parents_unit_label = array_map(function($val) {
