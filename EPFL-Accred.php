@@ -558,65 +558,6 @@ TABLE_FOOTER;
 
         return $parents_unit_label;
     }
-
-    /**
-     * Returns the parent LDAP unit label from an unit label.
-     */
-    function get_ldap_user_dn($persid)
-    {
-        $dn = self::LDAP_BASE_DN;
-
-        $ds = ldap_connect(self::LDAP_HOST) or die ("Error connecting to LDAP");
-
-        if ($ds === false) {
-          error_log("Cannot connect to LDAP");
-          return false;
-        }
-
-        ldap_set_option($ds, LDAP_OPT_PROTOCOL_VERSION, 3);
-
-        $result = ldap_search($ds, $dn, "(&(objectClass=person)(uniqueIdentifier=$persid))", ["dn"]);
-
-        if ($result === false) {
-          error_log(ldap_error($ds));
-          return false;
-        }
-
-        $infos = ldap_get_entries($ds, $result);
-        $user_dn = $infos[0]['dn'];
-        ldap_close($ds);
-
-        return $user_dn;
-    }
-
-    /**
-     * Returns is user is member of group.
-     */
-    function is_member_of_group_ldap($user_dn, $group)
-    {
-        $dn = "cn=$group,ou=groups,o=epfl,". self::LDAP_BASE_DN;
-
-        $ds = ldap_connect(self::LDAP_HOST) or die ("Error connecting to LDAP");
-
-        if ($ds === false) {
-          error_log("Cannot connect to LDAP");
-          return false;
-        }
-
-        ldap_set_option($ds, LDAP_OPT_PROTOCOL_VERSION, 3);
-
-        $result = ldap_search($ds, $dn, "(member=$user_dn)", ["dn"]);
-        if ($result === false) {
-          error_log(ldap_error($ds));
-          return false;
-        }
-
-        $infos = ldap_get_entries($ds, $result);
-        error_log(var_export($infos, true));
-        ldap_close($ds);
-
-        return isset($infos);
-    }
     
 }
 
