@@ -89,19 +89,19 @@ class Controller
     {
         $this->settings->hook();
         (new CLI($this))->hook();
-        add_action('openid_save_user', array($this, 'openid_save_user'));
+        add_action('openid_save_user', array($this, 'openid_save_user'), 10, 2);
     }
 
     /**
      * Create or update the Wordpress user from the OpenID data
      */
-    function openid_save_user($openid_data)
+    function openid_save_user ($user_claim)
     {
-        $this->debug("-> openid_save_user:\n". var_export($openid_data, true));
+        $this->debug("-> openid_save_user:\n". var_export($user_claim, true));
 
         // Getting by slug (this is where we store uniqueid, which never change)
-        $user = get_user_by("email", $openid_data["email"]);
-        $user_role = $this->settings->get_access_level($openid_data);
+        $user = get_user_by("email", $user_claim["email"]);
+        $user_role = $this->settings->get_access_level($user_claim);
         if (! $user_role) {
             $user_role = "";  // So that wp_update_user() removes the right
         }
@@ -113,12 +113,12 @@ class Controller
         }
 
         $userdata = array(
-            'user_nicename'  => $openid_data['uniqueid'],  // Their "slug"
-            'nickname'       => $openid_data['uniqueid'],
-            'user_email'     => $openid_data['email'],
-            'user_login'     => $openid_data['gaspar'],
-            'first_name'     => $openid_data['given_name'],
-            'last_name'      => $openid_data['family_name'],
+            'user_nicename'  => $user_claim['uniqueid'],  // Their "slug"
+            'nickname'       => $user_claim['uniqueid'],
+            'user_email'     => $user_claim['email'],
+            'user_login'     => $user_claim['gaspar'],
+            'first_name'     => $user_claim['given_name'],
+            'last_name'      => $user_claim['family_name'],
             'role'           => $user_role,
             'user_pass'      => null);
         $this->debug(var_export($userdata, true));
@@ -135,12 +135,12 @@ class Controller
             $this->debug("Updating user");
 
             // if username has changed
-            if($openid_data['given_name'] != $user->user_login)
+            if($user_claim['given_name'] != $user->user_login)
             {
-                $this->debug("Username has changed from ".$user->user_login." to ".$openid_data['given_name']);
+                $this->debug("Username has changed from ".$user->user_login." to ".$user_claim['given_name']);
                 // We have to "manually" update username in DB with a request because using 'wp_update_user' won't work...
                 global $wpdb;
-                $wpdb->update($wpdb->users, array('user_login' => $openid_data['given_name']), array('ID' => $user->ID));
+                $wpdb->update($wpdb->users, array('user_login' => $user_claim['given_name']), array('ID' => $user->ID));
             }
 
             $userdata['ID'] = $user->ID;
@@ -317,25 +317,29 @@ TABLE_FOOTER;
 
     /**
      * @return One of the WordPress roles e.g. "administrator", "editor" etc.
-     *         or null if the user designated by $openid_data doesn't belong
+     *         or null if the user designated by $user_claim doesn't belong
      *         to any of the roles.
      */
-    function get_access_level ($openid_data)
+    function get_access_level ($user_claim)
     {
-        $this->debug("get_access_level() called for " . var_export($openid_data, true));
+        $this->debug("get_access_level() called for " . var_export($user_claim, true));
+        $groups = $user_claim['groups'];
+        $rights = $user_claim['rights'];
         $access_levels = array(
-            $this->get_access_level_from_groups($openid_data),
-            $this->get_access_level_from_accred($openid_data));
+            $this->get_access_level_from_groups($groups),
+            $this->get_access_level_from_accred($rights)
+        );
+
         $this->debug("Before sorting:" . var_export($access_levels, true));
         usort($access_levels, 'EPFL\Accred\Roles::compare');
         $this->debug("After sorting:" . var_export($access_levels, true));
+        error_log(var_export($access_levels, true));
         return $access_levels[0];
     }
 
-    function get_access_level_from_groups ($openid_data)
+    function get_access_level_from_groups ($groups)
     {
-        $this->debug("EPFL groups: ". var_export($openid_data['groups'], true));
-        if (empty($openid_data['groups'])) return null;
+        if (empty($groups)) return null;
 
         foreach ($this->role_settings() as $role => $role_setting) {
             $this->debug("Checking role: $role ($role_setting)");
@@ -352,7 +356,7 @@ TABLE_FOOTER;
 
             $user_groups = array_map(function($group) {
                 return str_replace("_AppGrpU", "", $group);
-            }, $openid_data['groups']);
+            }, $groups);
 
             $this->debug("Checking group: ".var_export($role_group, true));
             if (in_array($role_group, $user_groups)) {
@@ -363,18 +367,16 @@ TABLE_FOOTER;
         return null;
     }
 
-    function get_access_level_from_accred ($openid_data)
+    function get_access_level_from_accred ($rights)
     {
+        if (empty($rights)) return null;
+
         $owner_unit_id = trim($this->get('unit_id'));
         if (empty($owner_unit_id)) {
             return null;
         }
-
-        if (empty($openid_data['authorizations']) or empty(trim($openid_data['authorizations']))) {
-            return null;
-        }
-        $authorizations = explode(",", $openid_data['authorizations']);
-        $authorizations = array_filter($authorizations, function ($auth) {
+        
+        $authorizations = array_filter($rights, function ($auth) {
             return str_contains($auth, "WordPress.Editor:");
         });
         if (empty($authorizations)) {
@@ -414,11 +416,11 @@ TABLE_FOOTER;
         foreach ($authorizations as $auth) {
             $auth_unit_id = str_replace("WordPress.Editor:", "", $auth);
             $auth_unit_label = $this->get_ldap_unit_label($auth_unit_id);
-            $parents_unit_label = $this->get_ldap_parents_unit_label($auth_unit_label);
-            if ($parents_unit_label == null) {
+            $parents_unit_labels = $this->get_ldap_parents_unit_labels($auth_unit_label);
+            if ($parents_unit_labels == null) {
                 return null;
             }
-            foreach ($parents_unit_label as $parent_unit_label) {
+            foreach ($parents_unit_labels as $parent_unit_label) {
                 $parent_unit_id = $this->get_ldap_unit_id($parent_unit_label);
                 if ($auth == "WordPress.Editor:" . $parent_unit_id) {
                     array_push($accred_units_cache, $parent_unit_id);
@@ -523,7 +525,7 @@ TABLE_FOOTER;
     /**
      * Returns the parent LDAP unit label from an unit label.
      */
-    function get_ldap_parents_unit_label($unit_label)
+    function get_ldap_parents_unit_labels($unit_label)
     {
         $dn = self::LDAP_BASE_DN;
 
@@ -556,6 +558,66 @@ TABLE_FOOTER;
 
         return $parents_unit_label;
     }
+
+    /**
+     * Returns the parent LDAP unit label from an unit label.
+     */
+    function get_ldap_user_dn($persid)
+    {
+        $dn = self::LDAP_BASE_DN;
+
+        $ds = ldap_connect(self::LDAP_HOST) or die ("Error connecting to LDAP");
+
+        if ($ds === false) {
+          error_log("Cannot connect to LDAP");
+          return false;
+        }
+
+        ldap_set_option($ds, LDAP_OPT_PROTOCOL_VERSION, 3);
+
+        $result = ldap_search($ds, $dn, "(&(objectClass=person)(uniqueIdentifier=$persid))", ["dn"]);
+
+        if ($result === false) {
+          error_log(ldap_error($ds));
+          return false;
+        }
+
+        $infos = ldap_get_entries($ds, $result);
+        $user_dn = $infos[0]['dn'];
+        ldap_close($ds);
+
+        return $user_dn;
+    }
+
+    /**
+     * Returns is user is member of group.
+     */
+    function is_member_of_group_ldap($user_dn, $group)
+    {
+        $dn = "cn=$group,ou=groups,o=epfl,". self::LDAP_BASE_DN;
+
+        $ds = ldap_connect(self::LDAP_HOST) or die ("Error connecting to LDAP");
+
+        if ($ds === false) {
+          error_log("Cannot connect to LDAP");
+          return false;
+        }
+
+        ldap_set_option($ds, LDAP_OPT_PROTOCOL_VERSION, 3);
+
+        $result = ldap_search($ds, $dn, "(member=$user_dn)", ["dn"]);
+        if ($result === false) {
+          error_log(ldap_error($ds));
+          return false;
+        }
+
+        $infos = ldap_get_entries($ds, $result);
+        error_log(var_export($infos, true));
+        ldap_close($ds);
+
+        return isset($infos);
+    }
+    
 }
 
 
