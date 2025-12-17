@@ -452,17 +452,16 @@ TABLE_FOOTER;
             }
         }
 
-        // Check if owner_unit_id lies is a parent unit
-        foreach ($authorizations as $auth) {
-            $auth_unit_id = str_replace("WordPress.Editor:", "", $auth);
-            $auth_unit_label = $this->get_ldap_unit_label($auth_unit_id);
-            $parents_unit_labels = $this->get_ldap_parents_unit_labels($auth_unit_label);
-            if ($parents_unit_labels == null) {
-                return null;
-            }
-            foreach ($parents_unit_labels as $parent_unit_label) {
-                $parent_unit_id = $this->get_ldap_unit_id($parent_unit_label);
-                if ($auth == "WordPress.Editor:" . $parent_unit_id) {
+        // Check if one of the user authorization is parent of owner_unit_id
+        $parent_unit_labels = $this->get_ldap_parent_unit_labels($owner_unit_id);
+        if (! $parent_unit_labels) {
+            return null;
+        }
+        foreach ($parent_unit_labels as $parent_unit_label) {
+            $parent_unit_id = $this->get_ldap_unit_id($parent_unit_label);
+            foreach ($authorizations as $auth) {
+                $auth_unit_id = str_replace("WordPress.Editor:", "", $auth);
+                if ($auth_unit_id == $parent_unit_id) {
                     array_push($accred_units_cache, $parent_unit_id);
                     set_transient(self::UNITS_CACHE_KEY, $accred_units_cache, DAY_IN_SECONDS);
                     return true;
@@ -563,9 +562,9 @@ TABLE_FOOTER;
     }
 
     /**
-     * Returns the parent LDAP unit label from an unit label.
+     * Returns the parent LDAP units label from an unit id.
      */
-    function get_ldap_parents_unit_labels($unit_label)
+    function get_ldap_parent_unit_labels($unit_id)
     {
         $dn = self::LDAP_BASE_DN;
 
@@ -578,7 +577,7 @@ TABLE_FOOTER;
 
         ldap_set_option($ds, LDAP_OPT_PROTOCOL_VERSION, 3);
 
-        $result = ldap_search($ds, $dn, "(&(ou=$unit_label)(objectClass=organizationalUnit))");
+        $result = ldap_search($ds, $dn, "(&(uniqueidentifier=". $unit_id .")(objectClass=organizationalUnit))");
 
         if ($result === false) {
           error_log(ldap_error($ds));
@@ -590,13 +589,15 @@ TABLE_FOOTER;
         $ou = array_filter($dn, function ($val) {
             return str_contains($val, "ou=");
         });
-        $parents_unit_label = array_map(function($val) {
+        $parent_units_label = array_map(function($val) {
             return strtoupper(str_replace("ou=", "", $val));
         }, $ou);
 
         ldap_close($ds);
 
-        return $parents_unit_label;
+        $this->debug("Parent units found for unit ".$unit_id.":".var_export($parent_units_label, true));
+
+        return $parent_units_label;
     }
     
 }
