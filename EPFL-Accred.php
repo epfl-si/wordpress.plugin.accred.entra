@@ -175,7 +175,8 @@ class Controller
             'headers' => array(
                 'Authorization' => 'Bearer ' . $access_token,
                 'Host' => $host
-            )
+            ),
+            'timeout' => 20,
         ));
         $this->debug("EPFL userinfo: ". var_export($response, true));
 
