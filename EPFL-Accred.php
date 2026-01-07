@@ -97,10 +97,6 @@ class Controller
      */
     function openid_save_user ($access_token, $user_claim)
     {
-        $user_info_api = $this->get_userinfo($access_token);
-        $user_claim['rights'] = $user_info_api['rights'];
-        $user_claim['groups'] = $user_info_api['groups'];
-
         $this->debug("-> openid_save_user:\n". var_export($user_claim, true));
 
         // Getting by slug (this is where we store uniqueid, which never change)
@@ -161,43 +157,6 @@ class Controller
             die();
         }
     }
-
-    function get_userinfo ($access_token)
-    {
-        $userinfo_url = "https://api.epfl.ch/v1/oidc/userinfo";
-        $parsed_url = parse_url( $userinfo_url );
-		$host = $parsed_url['host'];
-        if ( ! empty( $parsed_url['port'] ) ) {
-			$host .= ":{$parsed_url['port']}";
-		}
-
-        $response = wp_remote_get( $userinfo_url, array(
-            'headers' => array(
-                'Authorization' => 'Bearer ' . $access_token,
-                'Host' => $host
-            ),
-            'timeout' => 20,
-        ));
-        $this->debug("EPFL userinfo: ". var_export($response, true));
-
-        if (is_wp_error($response)) {
-            return null;
-        }
-
-        $response_code  = wp_remote_retrieve_response_code( $response );
-        if ($response_code != 200) {
-            $this->debug("EPFL userinfo returned error code $response_code");
-            return null;
-        }
-
-		$response_body  = json_decode( wp_remote_retrieve_body( $response ), true );
-        if (! is_array( $response_body )) {
-            $this->debug("EPFL userinfo returned wrong body $body");
-            return null;
-        }
-        return $response_body;
-    }
-
 }
 
 class Settings extends \EPFL\SettingsBase
