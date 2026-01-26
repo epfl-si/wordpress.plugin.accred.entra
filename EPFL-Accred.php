@@ -141,12 +141,12 @@ class Controller
             $this->debug("Updating user");
 
             // if username has changed
-            if($user_claim['given_name'] != $user->user_login)
+            if($user_claim['gaspar'] != $user->user_login)
             {
-                $this->debug("Username has changed from ".$user->user_login." to ".$user_claim['given_name']);
+                $this->debug("Username has changed from ".$user->user_login." to ".$user_claim['gaspar']);
                 // We have to "manually" update username in DB with a request because using 'wp_update_user' won't work...
                 global $wpdb;
-                $wpdb->update($wpdb->users, array('user_login' => $user_claim['given_name']), array('ID' => $user->ID));
+                $wpdb->update($wpdb->users, array('user_login' => $user_claim['gaspar']), array('ID' => $user->ID));
             }
 
             $userdata['ID'] = $user->ID;
