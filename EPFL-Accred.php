@@ -402,7 +402,7 @@ TABLE_FOOTER;
 
             $this->debug("Checking group: ".var_export($role_group, true));
             $roleGroupArray = explode(',', $role_group);
-            if (count(array_intersect($roleGroupArray, $user_groups))) {
+            if (count(array_intersect($roleGroupArray, $user_groups)) > 0) {
                 $this->debug("Access level from groups is $role");
                 return $role;
             }
