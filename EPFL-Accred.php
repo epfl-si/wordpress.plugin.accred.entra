@@ -401,7 +401,8 @@ TABLE_FOOTER;
             }, $groups);
 
             $this->debug("Checking group: ".var_export($role_group, true));
-            if (in_array($role_group, $user_groups)) {
+            $roleGroupArray = explode(',', $role_group);
+            if (count(array_intersect($roleGroupArray, $user_groups))) {
                 $this->debug("Access level from groups is $role");
                 return $role;
             }
