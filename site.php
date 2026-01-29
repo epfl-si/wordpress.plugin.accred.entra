@@ -2,7 +2,7 @@
 
 /* Edit this file to site.php to tweak this plugin for your site. */
 
-namespace EPFL\Accred;
+namespace EPFL\Accred\Entra;
 
 if (! defined('ABSPATH')) {
     die('Access denied.');

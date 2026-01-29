@@ -2,7 +2,7 @@
 /**
  * Sync user privileges from Accred from the command line.
  */
-namespace EPFL\Accred;
+namespace EPFL\Accred\Entra;
 use \WP_CLI;
 
 #[AllowDynamicProperties]
