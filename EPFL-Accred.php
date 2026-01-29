@@ -7,7 +7,7 @@
  * Author URI:  mailto:dominique.quatravaux@epfl.ch
  */
 
-namespace EPFL\Accred;
+namespace EPFL\Accred\Entra;
 
 if ( ! defined( 'ABSPATH' ) ) {
     die( 'Access denied.' );
@@ -373,7 +373,7 @@ TABLE_FOOTER;
         );
 
         $this->debug("Before sorting:" . var_export($access_levels, true));
-        usort($access_levels, 'EPFL\Accred\Roles::compare');
+        usort($access_levels, 'EPFL\Accred\Entra\Roles::compare');
         $this->debug("After sorting:" . var_export($access_levels, true));
         error_log(var_export($access_levels, true));
         return $access_levels[0];
