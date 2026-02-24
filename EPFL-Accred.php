@@ -75,6 +75,7 @@ class Controller
     public function __construct ()
     {
         $this->settings = new Settings();
+        $this->is_debug_enabled = (bool) $this->settings->get('is_debug_enabled');
     }
 
     public static function getInstance ()
@@ -97,13 +98,16 @@ class Controller
      */
     function openid_save_user ($access_token, $user_claim)
     {
+        $this->debug("-> openid_save_user:\n". $access_token);
+
         if (!array_key_exists('rights', $user_claim) || !array_key_exists('groups', $user_claim)) {
             $user_info_api = $this->get_userinfo($access_token);
             $user_claim['rights'] = $user_info_api['rights'];
             $user_claim['groups'] = $user_info_api['groups'];
         }
 
-        $this->debug("-> openid_save_user:\n". var_export($user_claim, true));
+        $this->debug("-> user rights:\n". var_export($user_claim['rights'], true));
+        $this->debug("-> user groups:\n". var_export($user_claim['groups'], true));
 
         // Getting by slug (this is where we store uniqueid, which never change)
         $user = get_user_by("email", $user_claim["email"]);
@@ -212,6 +216,11 @@ class Settings extends \EPFL\SettingsBase
     var $vpsi_lockdown = false;
     var $is_debug_enabled = false;
 
+    function __construct()
+    {
+        $this->is_debug_enabled = (bool) $this->get('is_debug_enabled');
+    }
+
     function hook()
     {
         parent::hook();
@@ -291,6 +300,19 @@ class Settings extends \EPFL\SettingsBase
             );
         }
 
+        $this->register_setting('is_debug_enabled', array(
+            'type'    => 'boolean',
+            'default' => false,
+        ));
+        $this->add_settings_field(
+            'section_settings',
+            'is_debug_enabled',
+            ___('Activer le mode debug'),
+            array(
+                'help' => ___('Attention, peut provoquer des problèmes de sécurité si laissé activé.')
+            )
+        );
+
         // Not really a "field", but use the rendering callback mechanisms
         // we have:
         $this->add_settings_field(
@@ -335,6 +357,15 @@ HELP
     {
         // Nothing — The fields in this section speak for themselves
     }
+    function render_field_is_debug_enabled ($args)
+    {
+        $input_name = $this->option_name('is_debug_enabled');
+        $checked = $this->get('is_debug_enabled') ? 'checked="checked"' : '';
+        echo '<input type="checkbox" name="' . $input_name . '" value="1" ' . $checked . ' />';
+        if (!empty($args['help'])) {
+            echo '<br /><i>' . $args['help'] . '</i>';
+        }
+    }
     function render_field_admin_groups ()
     {
         $role_column_head  = ___("Rôle");
@@ -364,7 +395,6 @@ TABLE_FOOTER;
      */
     function get_access_level ($user_claim)
     {
-        $this->debug("get_access_level() called for " . var_export($user_claim, true));
         $groups = $user_claim['groups'];
         $rights = $user_claim['rights'];
         $access_levels = array(
@@ -372,10 +402,8 @@ TABLE_FOOTER;
             $this->get_access_level_from_accred($rights)
         );
 
-        $this->debug("Before sorting:" . var_export($access_levels, true));
         usort($access_levels, 'EPFL\Accred\Entra\Roles::compare');
-        $this->debug("After sorting:" . var_export($access_levels, true));
-        error_log(var_export($access_levels, true));
+        $this->debug("Access level:" . var_export($access_levels, true));
         return $access_levels[0];
     }
 
@@ -384,15 +412,12 @@ TABLE_FOOTER;
         if (empty($groups)) return null;
 
         foreach ($this->role_settings() as $role => $role_setting) {
-            $this->debug("Checking role: $role ($role_setting)");
             $role_group = $this->get($role_setting);
-            $this->debug("Role group found: ".var_export($role_group, true));
 
             if (empty(trim($role_group))) continue;
             /* If everyone has access for role */
             if($role_group == "*")
             {
-                $this->debug("Everyone access granted for role ".$role);
                 return $role;
             }
 
@@ -400,10 +425,8 @@ TABLE_FOOTER;
                 return str_replace("_AppGrpU", "", $group);
             }, $groups);
 
-            $this->debug("Checking group: ".var_export($role_group, true));
             $roleGroupArray = explode(',', $role_group);
             if (count(array_intersect($roleGroupArray, $user_groups)) > 0) {
-                $this->debug("Access level from groups is $role");
                 return $role;
             }
         }
@@ -430,7 +453,6 @@ TABLE_FOOTER;
             $auth_unit_list = explode(" ", substr($auth, strlen("WordPress.Editor:")));
             foreach ($auth_unit_list as $auth_unit) {
                 if ($auth_unit == $owner_unit_id) {
-                    $this->debug("Access level from accred is editor");
                     return "editor";
                 }
             }
