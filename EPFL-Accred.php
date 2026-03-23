@@ -89,34 +89,18 @@ class Controller
     {
         $this->settings->hook();
         (new CLI($this))->hook();
-        add_action('openid_save_user', array($this, 'openid_save_user'), 10, 2);
+        add_action('openid-connect-generic-user-login-test', array($this, 'openid_save_user'), 10, 2);
     }
 
     /**
      * Create or update the Wordpress user from the OpenID data
      */
-    function openid_save_user ($access_token, $user_claim)
+    function openid_save_user ($result, $user_claim)
     {
-        if (!array_key_exists('rights', $user_claim) || !array_key_exists('groups', $user_claim)) {
-            $user_info_api = $this->get_userinfo($access_token);
-            $user_claim['rights'] = $user_info_api['rights'];
-            $user_claim['groups'] = $user_info_api['groups'];
-        }
-
         $this->debug("-> openid_save_user:\n". var_export($user_claim, true));
+        $user = get_user_by('slug', $user_claim['uniqueid']);
 
-        // Getting by slug (this is where we store uniqueid, which never change)
-        $user = get_user_by("email", $user_claim["email"]);
-        $user_role = $this->settings->get_access_level($user_claim);
-        if (! $user_role) {
-            $user_role = "";  // So that wp_update_user() removes the right
-        }
-
-        if (empty(trim($user_role)) && $user === false) {
-            // User unknown and has no role: die() early (don't create it)
-            do_action("epfl_accred_403_user_no_role");
-            die();
-        }
+        $user_role = $this->settings->get_access_level($user_claim) ?? "";
 
         $userdata = array(
             'user_nicename'  => $user_claim['uniqueid'],  // Their "slug"
@@ -127,9 +111,9 @@ class Controller
             'last_name'      => $user_claim['family_name'],
             'role'           => $user_role,
             'user_pass'      => null);
-        $this->debug(var_export($userdata, true));
+
         if ($user === false) {
-            $this->debug("Inserting user");
+            $this->debug("Inserting user with \$userdata = "  . var_export($userdata, true));
             $new_user_id = wp_insert_user($userdata);
             if ( ! is_wp_error( $new_user_id ) ) {
                 $user = new \WP_User($new_user_id);
@@ -138,7 +122,7 @@ class Controller
                 die();
             }
         } else {  // User is already known to WordPress
-            $this->debug("Updating user");
+            $this->debug("Updating user with \$userdata = "  . var_export($userdata, true));
 
             // if username has changed
             if($user_claim['gaspar'] != $user->user_login)
@@ -162,44 +146,9 @@ class Controller
             do_action("epfl_accred_403_user_no_role");
             die();
         }
+
+        return $result;
     }
-
-    function get_userinfo ($access_token)
-    {
-        $userinfo_url = "https://api.epfl.ch/v1/oidc/userinfo";
-        $parsed_url = parse_url( $userinfo_url );
-		$host = $parsed_url['host'];
-        if ( ! empty( $parsed_url['port'] ) ) {
-			$host .= ":{$parsed_url['port']}";
-		}
-
-        $response = wp_remote_get( $userinfo_url, array(
-            'headers' => array(
-                'Authorization' => 'Bearer ' . $access_token,
-                'Host' => $host
-            ),
-            'timeout' => 20,
-        ));
-        $this->debug("EPFL userinfo: ". var_export($response, true));
-
-        if (is_wp_error($response)) {
-            return null;
-        }
-
-        $response_code  = wp_remote_retrieve_response_code( $response );
-        if ($response_code != 200) {
-            $this->debug("EPFL userinfo returned error code $response_code");
-            return null;
-        }
-
-		$response_body  = json_decode( wp_remote_retrieve_body( $response ), true );
-        if (! is_array( $response_body )) {
-            $this->debug("EPFL userinfo returned wrong body $body");
-            return null;
-        }
-        return $response_body;
-    }
-
 }
 
 class Settings extends \EPFL\SettingsBase
