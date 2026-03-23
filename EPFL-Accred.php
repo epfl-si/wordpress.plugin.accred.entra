@@ -346,11 +346,11 @@ TABLE_FOOTER;
             }
 
             $user_groups = array_map(function($group) {
-                return str_replace("_AppGrpU", "", $group);
+                return strtolower(str_replace("_AppGrpU", "", $group));
             }, $groups);
 
             $this->debug("Checking group: ".var_export($role_group, true));
-            $roleGroupArray = explode(',', $role_group);
+            $roleGroupArray = explode(',', strtolower($role_group));
             if (count(array_intersect($roleGroupArray, $user_groups)) > 0) {
                 $this->debug("Access level from groups is $role");
                 return $role;
