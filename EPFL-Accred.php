@@ -315,7 +315,7 @@ TABLE_FOOTER;
     {
         $this->debug("get_access_level() called for " . var_export($user_claim, true));
         $groups = $user_claim['groups'];
-        $rights = $user_claim['rights'];
+        $rights = $user_claim['rights'] ?? [];
         $access_levels = array(
             $this->get_access_level_from_groups($groups),
             $this->get_access_level_from_accred($rights)
