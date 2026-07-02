@@ -9,6 +9,8 @@
 
 namespace EPFL\Accred\Entra;
 
+use DateTime;
+
 if ( ! defined( 'ABSPATH' ) ) {
     die( 'Access denied.' );
 }
@@ -113,7 +115,33 @@ class Controller
             'user_pass'      => null);
 
         if ($user === false) {
-            $this->debug("Inserting user with \$userdata = "  . var_export($userdata, true));
+            // Ensure the insert will succeed
+            $user_by_username = get_user_by('login', $user_claim['gaspar']);
+            if ($user_by_username !== false) {
+                // rename old username
+                $creation_year = DateTime::createFromFormat("Y-m-d", $user_by_username['user_registered'])->format("Y");
+                for ($unique_suffix = ''; $unique_suffix = '_' . (intval(trim($unique_suffix, '_')) + 1);) {
+                    $rotated_username = $user_by_username['user_login'] . '_' . $creation_year . $unique_suffix;
+                    global $wpdb;
+                    if ($wpdb->update($wpdb->users, array('user_login' => $rotated_username), array('ID' => $user_by_username->ID))) {
+                        break;
+                    }
+                }
+            }
+
+            $user_by_email = get_user_by('email', $user_claim['email']);
+            if ($user_by_email !== false) {
+                // delete old email
+                list($email_username, $email_domain) = explode('@', $user_by_email['user_email']);
+                for ($unique_suffix = ''; $unique_suffix = '_' . (intval(trim($unique_suffix, '_')) + 1);) {
+                    $rotated_email = $email_username . '_' . $unique_suffix . '@' . $email_domain;
+                    global $wpdb;
+                    if ($wpdb->update($wpdb->users, array('user_email' => $rotated_email), array('ID' => $user_by_email->ID))) {
+                        break;
+                    }
+                }
+            }
+            $this->debug("Inserting user with \$userdata = " . var_export($userdata, true));
             $new_user_id = wp_insert_user($userdata);
             if ( ! is_wp_error( $new_user_id ) ) {
                 $user = new \WP_User($new_user_id);
@@ -157,7 +185,7 @@ class Settings extends \EPFL\SettingsBase
     /* We don't look in o=epfl,c=ch because some units can be for example in c=ch*/
     const LDAP_BASE_DN = "c=ch";
     const LDAP_HOST = "ldap.epfl.ch";
-    
+
     var $vpsi_lockdown = false;
     var $is_debug_enabled = false;
 
@@ -362,12 +390,12 @@ TABLE_FOOTER;
     function get_access_level_from_accred ($rights)
     {
         if (empty($rights)) return null;
-        
+
         $owner_unit_id = trim($this->get('unit_id'));
         if (empty($owner_unit_id)) {
             return null;
         }
-        
+
         $authorizations = array_filter($rights, function ($auth) {
             return str_contains($auth, "WordPress.Editor:");
         });
@@ -445,7 +473,7 @@ TABLE_FOOTER;
 
         return $unit_id;
     }
-    
+
 }
 
 
