@@ -119,9 +119,9 @@ class Controller
             $user_by_username = get_user_by('login', $user_claim['gaspar']);
             if ($user_by_username !== false) {
                 // rename old username
-                $creation_year = DateTime::createFromFormat("Y-m-d", $user_by_username['user_registered'])->format("Y");
+                $creation_year = DateTime::createFromFormat("Y-m-d", $user_by_username->user_registered)->format("Y");
                 for ($unique_suffix = ''; $unique_suffix = '_' . (intval(trim($unique_suffix, '_')) + 1);) {
-                    $rotated_username = $user_by_username['user_login'] . '_' . $creation_year . $unique_suffix;
+                    $rotated_username = $user_by_username->user_login . '_' . $creation_year . $unique_suffix;
                     global $wpdb;
                     if ($wpdb->update($wpdb->users, array('user_login' => $rotated_username), array('ID' => $user_by_username->ID))) {
                         break;
@@ -132,7 +132,7 @@ class Controller
             $user_by_email = get_user_by('email', $user_claim['email']);
             if ($user_by_email !== false) {
                 // delete old email
-                list($email_username, $email_domain) = explode('@', $user_by_email['user_email']);
+                list($email_username, $email_domain) = explode('@', $user_by_email->user_email);
                 for ($unique_suffix = ''; $unique_suffix = '_' . (intval(trim($unique_suffix, '_')) + 1);) {
                     $rotated_email = $email_username . '_' . $unique_suffix . '@' . $email_domain;
                     global $wpdb;
