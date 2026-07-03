@@ -122,7 +122,7 @@ class Controller
                     $rotated_username = $user_by_username->user_login . '_' . $creation_year . $unique_suffix;
                     global $wpdb;
                     if (false !== $wpdb->update($wpdb->users, array('user_login' => $rotated_username), array('ID' => $user_by_username->ID))) {
-						clean_user_cache($user_by_username);
+                        clean_user_cache($user_by_username);
                         break;
                     }
                 }
@@ -132,18 +132,17 @@ class Controller
             if ($user_by_email !== false) {
                 // delete old email
                 list($email_username, $email_domain) = explode('@', $user_by_email->user_email);
-                for ($unique_suffix = ''; ; $unique_suffix = '_' . (intval(trim($unique_suffix, '_')) + 1)) {
+                for ($unique_suffix = 1; ; $unique_suffix++) {
                     $rotated_email = $email_username . '_' . $unique_suffix . '@' . $email_domain;
                     global $wpdb;
                     if (false !== $wpdb->update($wpdb->users, array('user_email' => $rotated_email), array('ID' => $user_by_email->ID))) {
-						clean_user_cache($user_by_email);
+                        clean_user_cache($user_by_email);
                         break;
                     }
                 }
             }
             $this->debug("Inserting user with \$userdata = " . var_export($userdata, true));
             $insert_result = wp_insert_user($userdata);
-			$this->debug("Return of insert =  "  . var_export($insert_result, true));
             if ( is_wp_error( $insert_result ) ) {
                 echo $insert_result->get_error_message();
                 die();
