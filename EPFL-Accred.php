@@ -69,9 +69,7 @@ class Controller
 
     function debug ($msg)
     {
-        if ($this->is_debug_enabled) {
-            error_log("Accred: ".$msg);
-        }
+        error_log("Accred: ".$msg);
     }
 
     public function __construct ()
@@ -119,11 +117,12 @@ class Controller
             $user_by_username = get_user_by('login', $user_claim['gaspar']);
             if ($user_by_username !== false) {
                 // rename old username
-                $creation_year = DateTime::createFromFormat("Y-m-d", $user_by_username->user_registered)->format("Y");
-                for ($unique_suffix = ''; $unique_suffix = '_' . (intval(trim($unique_suffix, '_')) + 1);) {
+                $creation_year = (new DateTime($user_by_username->user_registered))->format("Y");
+                for ($unique_suffix = ''; ; $unique_suffix = '_' . (intval(trim($unique_suffix, '_')) + 1)) {
                     $rotated_username = $user_by_username->user_login . '_' . $creation_year . $unique_suffix;
                     global $wpdb;
-                    if ($wpdb->update($wpdb->users, array('user_login' => $rotated_username), array('ID' => $user_by_username->ID))) {
+                    if (false !== $wpdb->update($wpdb->users, array('user_login' => $rotated_username), array('ID' => $user_by_username->ID))) {
+						clean_user_cache($user_by_username);
                         break;
                     }
                 }
@@ -133,20 +132,20 @@ class Controller
             if ($user_by_email !== false) {
                 // delete old email
                 list($email_username, $email_domain) = explode('@', $user_by_email->user_email);
-                for ($unique_suffix = ''; $unique_suffix = '_' . (intval(trim($unique_suffix, '_')) + 1);) {
+                for ($unique_suffix = ''; ; $unique_suffix = '_' . (intval(trim($unique_suffix, '_')) + 1)) {
                     $rotated_email = $email_username . '_' . $unique_suffix . '@' . $email_domain;
                     global $wpdb;
-                    if ($wpdb->update($wpdb->users, array('user_email' => $rotated_email), array('ID' => $user_by_email->ID))) {
+                    if (false !== $wpdb->update($wpdb->users, array('user_email' => $rotated_email), array('ID' => $user_by_email->ID))) {
+						clean_user_cache($user_by_email);
                         break;
                     }
                 }
             }
             $this->debug("Inserting user with \$userdata = " . var_export($userdata, true));
-            $new_user_id = wp_insert_user($userdata);
-            if ( ! is_wp_error( $new_user_id ) ) {
-                $user = new \WP_User($new_user_id);
-            } else {
-                echo $new_user_id->get_error_message();
+            $insert_result = wp_insert_user($userdata);
+			$this->debug("Return of insert =  "  . var_export($insert_result, true));
+            if ( is_wp_error( $insert_result ) ) {
+                echo $insert_result->get_error_message();
                 die();
             }
         } else {  // User is already known to WordPress
@@ -162,7 +161,7 @@ class Controller
             }
 
             $userdata['ID'] = $user->ID;
-            $user_id = wp_update_user($userdata);
+            wp_update_user($userdata);
         }
 
         /* Hide admin bar if necessary */
