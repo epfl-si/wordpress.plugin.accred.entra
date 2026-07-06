@@ -120,8 +120,9 @@ class Controller
                 $creation_year = (new DateTime($user_by_username->user_registered))->format("Y");
                 for ($unique_suffix = ''; ; $unique_suffix = '_' . (intval(trim($unique_suffix, '_')) + 1)) {
                     $rotated_username = $user_by_username->user_login . '_' . $creation_year . $unique_suffix;
-                    global $wpdb;
-                    if (false !== $wpdb->update($wpdb->users, array('user_login' => $rotated_username), array('ID' => $user_by_username->ID))) {
+                    if (false === get_user_by('login', $rotated_username)) {
+                        global $wpdb;
+                        $wpdb->update($wpdb->users, array('user_login' => $rotated_username), array('ID' => $user_by_username->ID));
                         clean_user_cache($user_by_username);
                         break;
                     }
@@ -134,8 +135,9 @@ class Controller
                 list($email_username, $email_domain) = explode('@', $user_by_email->user_email);
                 for ($unique_suffix = 1; ; $unique_suffix++) {
                     $rotated_email = $email_username . '_' . $unique_suffix . '@' . $email_domain;
-                    global $wpdb;
-                    if (false !== $wpdb->update($wpdb->users, array('user_email' => $rotated_email), array('ID' => $user_by_email->ID))) {
+                    if (false === get_user_by('email', $rotated_email)) {
+                        global $wpdb;
+                        $wpdb->update($wpdb->users, array('user_email' => $rotated_email), array('ID' => $user_by_email->ID));
                         clean_user_cache($user_by_email);
                         break;
                     }
