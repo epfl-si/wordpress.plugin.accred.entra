@@ -2,7 +2,7 @@
 /*
  * Plugin Name: EPFL Accred Entra
  * Description: Automatically sync access rights to WordPress from EPFL's institutional data repositories
- * Version:     0.19
+ * Version:     0.20
  * Author:      Dominique Quatravaux
  * Author URI:  mailto:dominique.quatravaux@epfl.ch
  */
@@ -131,7 +131,7 @@ class Controller
                 $creation_year = ( new DateTime( $user_by_username->user_registered ) )->format( "Y" );
                 for ( $unique_suffix = ''; ; $unique_suffix = '_' . ( intval( trim( $unique_suffix, '_' ) ) + 1 ) ) {
                     $rotated_username = $user_by_username->user_login . '_' . $creation_year . $unique_suffix;
-                    if (false === get_user_by( 'login', $rotated_username ) ) {
+                    if ( false === get_user_by( 'login', $rotated_username ) ) {
                         global $wpdb;
                         $wpdb->update( $wpdb->users, array( 'user_login' => $rotated_username ), array( 'ID' => $user_by_username->ID ) );
                         $this->delete_entra_is_user_meta( $wpdb, $user_by_username );
