@@ -69,7 +69,9 @@ class Controller
 
     function debug ($msg)
     {
-        error_log("Accred: ".$msg);
+        if ($this->is_debug_enabled) {
+            error_log("Accred: " . $msg);
+        }
     }
 
     public function __construct ()
@@ -92,13 +94,13 @@ class Controller
         add_action('openid-connect-generic-user-login-test', array($this, 'openid_save_user'), 10, 2);
     }
 
-    function delete_entra_is_user_meta ($wpdb, $user)
+    function delete_entra_is_user_meta ( $wpdb, $user )
     {
-        $wpdb->delete($wpdb->usermeta, array('meta_key' => 'openid-connect-generic-subject-identity', 'user_id' => $user->ID));
-        $wpdb->delete($wpdb->usermeta, array('meta_key' => 'wp_openid-connect-generic-last-token-response', 'user_id' => $user->ID));
-        $wpdb->delete($wpdb->usermeta, array('meta_key' => 'wp_openid-connect-generic-last-id-token-claim', 'user_id' => $user->ID));
-        $wpdb->delete($wpdb->usermeta, array('meta_key' => 'wp_openid-connect-generic-last-user-claim', 'user_id' => $user->ID));
-        $wpdb->delete($wpdb->usermeta, array('meta_key' => 'session_tokens', 'user_id' => $user->ID));
+        $wpdb->delete( $wpdb->usermeta, array( 'meta_key' => 'openid-connect-generic-subject-identity', 'user_id' => $user->ID ) );
+        $wpdb->delete( $wpdb->usermeta, array( 'meta_key' => 'wp_openid-connect-generic-last-token-response', 'user_id' => $user->ID ) );
+        $wpdb->delete( $wpdb->usermeta, array( 'meta_key' => 'wp_openid-connect-generic-last-id-token-claim', 'user_id' => $user->ID ) );
+        $wpdb->delete( $wpdb->usermeta, array( 'meta_key' => 'wp_openid-connect-generic-last-user-claim', 'user_id' => $user->ID ) );
+        $wpdb->delete( $wpdb->usermeta, array( 'meta_key' => 'session_tokens', 'user_id' => $user->ID ) );
     }
 
     /**
@@ -106,7 +108,7 @@ class Controller
      */
     function openid_save_user ($result, $user_claim)
     {
-        $this->debug("-> openid_save_user:\n". var_export($user_claim, true));
+        $this->debug("-> openid_save_user:\n" . var_export( $user_claim, true) );
         $user = get_user_by('slug', $user_claim['uniqueid']);
 
         $user_role = $this->settings->get_access_level($user_claim) ?? "";
@@ -121,41 +123,41 @@ class Controller
             'role'           => $user_role,
             'user_pass'      => null);
 
-        if ($user === false) {
+        if ( $user === false ) {
             // Ensure the insert will succeed
-            $user_by_username = get_user_by('login', $user_claim['gaspar']);
-            if ($user_by_username !== false) {
+            $user_by_username = get_user_by( 'login', $user_claim['gaspar'] );
+            if ( $user_by_username !== false ) {
                 // rename old username
-                $creation_year = (new DateTime($user_by_username->user_registered))->format("Y");
-                for ($unique_suffix = ''; ; $unique_suffix = '_' . (intval(trim($unique_suffix, '_')) + 1)) {
+                $creation_year = ( new DateTime( $user_by_username->user_registered ) )->format( "Y" );
+                for ( $unique_suffix = ''; ; $unique_suffix = '_' . ( intval( trim( $unique_suffix, '_' ) ) + 1 ) ) {
                     $rotated_username = $user_by_username->user_login . '_' . $creation_year . $unique_suffix;
-                    if (false === get_user_by('login', $rotated_username)) {
+                    if (false === get_user_by( 'login', $rotated_username ) ) {
                         global $wpdb;
-                        $wpdb->update($wpdb->users, array('user_login' => $rotated_username), array('ID' => $user_by_username->ID));
-                        $this->delete_entra_is_user_meta($wpdb, $user_by_username);
-                        clean_user_cache($user_by_username);
+                        $wpdb->update( $wpdb->users, array( 'user_login' => $rotated_username ), array( 'ID' => $user_by_username->ID ) );
+                        $this->delete_entra_is_user_meta( $wpdb, $user_by_username );
+                        clean_user_cache( $user_by_username );
                         break;
                     }
                 }
             }
 
-            $user_by_email = get_user_by('email', $user_claim['email']);
-            if ($user_by_email !== false) {
+            $user_by_email = get_user_by( 'email', $user_claim['email'] );
+            if ( $user_by_email !== false ) {
                 // delete old email
-                list($email_username, $email_domain) = explode('@', $user_by_email->user_email);
-                for ($unique_suffix = 1; ; $unique_suffix++) {
+                list( $email_username, $email_domain ) = explode( '@', $user_by_email->user_email );
+                for ( $unique_suffix = 1; ; $unique_suffix++ ) {
                     $rotated_email = $email_username . '_' . $unique_suffix . '@' . $email_domain;
-                    if (false === get_user_by('email', $rotated_email)) {
+                    if (false === get_user_by( 'email', $rotated_email ) ) {
                         global $wpdb;
-                        $wpdb->update($wpdb->users, array('user_email' => $rotated_email), array('ID' => $user_by_email->ID));
-                        $this->delete_entra_is_user_meta($wpdb, $user_by_email);
-                        clean_user_cache($user_by_email);
+                        $wpdb->update( $wpdb->users, array( 'user_email' => $rotated_email ), array( 'ID' => $user_by_email->ID ) );
+                        $this->delete_entra_is_user_meta( $wpdb, $user_by_email );
+                        clean_user_cache( $user_by_email );
                         break;
                     }
                 }
             }
-            $this->debug("Inserting user with \$userdata = " . var_export($userdata, true));
-            $insert_result = wp_insert_user($userdata);
+            $this->debug( "Inserting user with \$userdata = " . var_export( $userdata, true ) );
+            $insert_result = wp_insert_user( $userdata );
             if ( is_wp_error( $insert_result ) ) {
                 echo $insert_result->get_error_message();
                 die();
@@ -173,8 +175,8 @@ class Controller
             }
 
             $userdata['ID'] = $user->ID;
-            $userdata['display_name'] = $userdata['first_name'] . ' '. $userdata['last_name'];
-            wp_update_user($userdata);
+            $userdata['display_name'] = $userdata['first_name'] . ' ' . $userdata['last_name'];
+            wp_update_user( $userdata );
         }
 
         /* Hide admin bar if necessary */
