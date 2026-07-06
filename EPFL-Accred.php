@@ -1,10 +1,36 @@
 <?php
-/*
+/**
+ * EPFL Accred
+ *
+ * @package     EPFLAccred
+ * @author      ISAS-FSD
+ * @copyright   Copyright (c) 2026, EPFL
+ * @license     GPL-2.0-or-later
+ *
+ * @wordpress-plugin
  * Plugin Name: EPFL Accred Entra
+ * Plugin URI:  https://github.com/epfl-si/wordpress.plugin.accred.entra
  * Description: Automatically sync access rights to WordPress from EPFL's institutional data repositories
- * Version:     0.20
- * Author:      Dominique Quatravaux
- * Author URI:  mailto:dominique.quatravaux@epfl.ch
+ * Version:     0.21
+ * Author:      ISAS-FSD
+ * Author URI:  https://go.epfl.ch/fsd
+ * Contributor: Dominique Quatravaux <dominique.quatravaux@epfl.ch>, Rosa Maggi <rosa.maggi@epfl.ch>, Luc Venries <luc.venries@epfl.ch>, Nicolas Borboën <nicolas.borboen@epfl.ch>
+ * Text Domain: EPFL-Accred
+ * License:     GPL-2.0+
+ * License URI: http://www.gnu.org/licenses/gpl-2.0.txt
+ *
+ * EPFL Accred is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * any later version.
+ *
+ * EPFL Accred is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with EPFL Accred. If not, see <http://www.gnu.org/licenses/>.
  */
 
 namespace EPFL\Accred\Entra;
