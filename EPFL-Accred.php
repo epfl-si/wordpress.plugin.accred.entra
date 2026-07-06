@@ -92,6 +92,15 @@ class Controller
         add_action('openid-connect-generic-user-login-test', array($this, 'openid_save_user'), 10, 2);
     }
 
+	function delete_entra_is_user_meta ($wpdb, $user)
+	{
+		$wpdb->delete($wpdb->usermeta, array('meta_key' => 'openid-connect-generic-subject-identity', 'user_id' => $user->ID));
+		$wpdb->delete($wpdb->usermeta, array('meta_key' => 'wp_openid-connect-generic-last-token-response', 'user_id' => $user->ID));
+		$wpdb->delete($wpdb->usermeta, array('meta_key' => 'wp_openid-connect-generic-last-id-token-claim', 'user_id' => $user->ID));
+		$wpdb->delete($wpdb->usermeta, array('meta_key' => 'wp_openid-connect-generic-last-user-claim', 'user_id' => $user->ID));
+		$wpdb->delete($wpdb->usermeta, array('meta_key' => 'session_tokens', 'user_id' => $user->ID));
+	}
+
     /**
      * Create or update the Wordpress user from the OpenID data
      */
@@ -123,6 +132,7 @@ class Controller
                     if (false === get_user_by('login', $rotated_username)) {
                         global $wpdb;
                         $wpdb->update($wpdb->users, array('user_login' => $rotated_username), array('ID' => $user_by_username->ID));
+                        $this->delete_entra_is_user_meta($wpdb, $user_by_username);
                         clean_user_cache($user_by_username);
                         break;
                     }
@@ -138,6 +148,7 @@ class Controller
                     if (false === get_user_by('email', $rotated_email)) {
                         global $wpdb;
                         $wpdb->update($wpdb->users, array('user_email' => $rotated_email), array('ID' => $user_by_email->ID));
+                        $this->delete_entra_is_user_meta($wpdb, $user_by_email);
                         clean_user_cache($user_by_email);
                         break;
                     }
