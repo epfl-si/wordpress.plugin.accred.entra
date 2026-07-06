@@ -92,14 +92,14 @@ class Controller
         add_action('openid-connect-generic-user-login-test', array($this, 'openid_save_user'), 10, 2);
     }
 
-	function delete_entra_is_user_meta ($wpdb, $user)
-	{
-		$wpdb->delete($wpdb->usermeta, array('meta_key' => 'openid-connect-generic-subject-identity', 'user_id' => $user->ID));
-		$wpdb->delete($wpdb->usermeta, array('meta_key' => 'wp_openid-connect-generic-last-token-response', 'user_id' => $user->ID));
-		$wpdb->delete($wpdb->usermeta, array('meta_key' => 'wp_openid-connect-generic-last-id-token-claim', 'user_id' => $user->ID));
-		$wpdb->delete($wpdb->usermeta, array('meta_key' => 'wp_openid-connect-generic-last-user-claim', 'user_id' => $user->ID));
-		$wpdb->delete($wpdb->usermeta, array('meta_key' => 'session_tokens', 'user_id' => $user->ID));
-	}
+    function delete_entra_is_user_meta ($wpdb, $user)
+    {
+        $wpdb->delete($wpdb->usermeta, array('meta_key' => 'openid-connect-generic-subject-identity', 'user_id' => $user->ID));
+        $wpdb->delete($wpdb->usermeta, array('meta_key' => 'wp_openid-connect-generic-last-token-response', 'user_id' => $user->ID));
+        $wpdb->delete($wpdb->usermeta, array('meta_key' => 'wp_openid-connect-generic-last-id-token-claim', 'user_id' => $user->ID));
+        $wpdb->delete($wpdb->usermeta, array('meta_key' => 'wp_openid-connect-generic-last-user-claim', 'user_id' => $user->ID));
+        $wpdb->delete($wpdb->usermeta, array('meta_key' => 'session_tokens', 'user_id' => $user->ID));
+    }
 
     /**
      * Create or update the Wordpress user from the OpenID data
@@ -173,6 +173,7 @@ class Controller
             }
 
             $userdata['ID'] = $user->ID;
+            $userdata['display_name'] = $userdata['first_name'] . ' '. $userdata['last_name'];
             wp_update_user($userdata);
         }
 
